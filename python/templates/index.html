@@ -1,0 +1,1943 @@
+<!DOCTYPE html>
+<html lang="zh-CN" class="scroll-smooth">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NAS服务导航中心</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
+  <script>
+    // Tailwind配置
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            primary: '#3B82F6',
+            secondary: '#10B981',
+            neutral: {
+              100: '#F3F4F6',
+              200: '#E5E7EB',
+              300: '#D1D5DB',
+              400: '#9CA3AF',
+              500: '#6B7280',
+              600: '#4B5563',
+              700: '#374151',
+              800: '#1F2937',
+              900: '#111827',
+            }
+          },
+          fontFamily: {
+            sans: ['Inter', 'system-ui', 'sans-serif'],
+          },
+        }
+      }
+    }
+  </script>
+  <style type="text/tailwindcss">
+    @layer utilities {
+            .content-auto {
+                content-visibility: auto;
+            }
+            .text-shadow {
+                text-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            }
+            .card-hover {
+                @apply transition-all duration-300 hover:shadow-lg hover:-translate-y-1;
+            }
+            .btn-primary {
+                @apply bg-primary text-white px-4 py-2 rounded-lg transition-all duration-200 hover:bg-primary/90 active:scale-95 focus:outline-none focus:ring-2 focus:ring-primary/50;
+            }
+            .btn-secondary {
+                @apply bg-neutral-200 dark:bg-neutral-700 px-4 py-2 rounded-lg transition-all duration-200 hover:bg-neutral-300 dark:hover:bg-neutral-600 active:scale-95 focus:outline-none focus:ring-2 focus:ring-neutral-400/50;
+            }
+            .input-field {
+                @apply w-full px-4 py-2 rounded-lg border border-neutral-300 dark:border-neutral-600 bg-white dark:bg-neutral-800 focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all duration-200;
+            }
+            .badge {
+                @apply px-2 py-1 text-xs rounded-full font-medium;
+            }
+        }
+    </style>
+</head>
+
+<body
+  class="bg-neutral-100 dark:bg-neutral-900 text-neutral-800 dark:text-neutral-100 transition-colors duration-300 min-h-screen flex flex-col">
+  <!-- 通知弹窗组件 -->
+  <div id="toast"
+    class="fixed top-10 right-4 max-w-xs p-4 rounded-lg shadow-lg transform translate-x-full transition-transform duration-300 z-50 flex items-center gap-3">
+    <!-- 将 top-4 改为 top-20 或更大的值 -->
+    <div id="toast-icon" class="text-primary text-xl">
+      <i class="fa fa-info-circle"></i>
+    </div>
+    <div>
+      <div id="toast-title" class="font-medium"></div>
+      <div id="toast-message" class="text-sm text-neutral-500 dark:text-neutral-400"></div>
+    </div>
+    <button id="toast-close" class="ml-auto text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300">
+      <i class="fa fa-times"></i>
+    </button>
+  </div>
+
+  <!-- 确认弹窗组件 -->
+  <div id="confirm-modal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 hidden">
+    <div
+      class="bg-white dark:bg-neutral-800 rounded-xl p-6 w-full max-w-md shadow-2xl transform transition-all duration-300 scale-95 opacity-0"
+      id="confirm-content">
+      <h3 id="confirm-title" class="text-lg font-semibold mb-2"></h3>
+      <p id="confirm-message" class="text-neutral-600 dark:text-neutral-300 mb-4"></p>
+      <div class="flex justify-end gap-3">
+        <button id="confirm-cancel" class="btn-secondary">取消</button>
+        <button id="confirm-ok" class="btn-primary">确认</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 通用模态框组件 -->
+  <div id="modal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 hidden">
+    <div
+      class="bg-white dark:bg-neutral-800 rounded-xl p-6 w-full max-w-lg shadow-2xl transform transition-all duration-300 scale-95 opacity-0"
+      id="modal-content">
+      <div class="flex justify-between items-center mb-4">
+        <h3 id="modal-title" class="text-xl font-semibold"></h3>
+        <button id="modal-close" class="text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300">
+          <i class="fa fa-times text-xl"></i>
+        </button>
+      </div>
+      <div id="modal-body" class="mb-6"></div>
+      <div id="modal-footer" class="flex justify-end gap-3">
+        <button id="modal-cancel" class="btn-secondary">取消</button>
+        <button id="modal-save" class="btn-primary">保存</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 认证界面 -->
+  <div id="auth-container" class="flex-1 flex items-center justify-center p-4 hidden">
+    <div class="w-full max-w-md bg-white dark:bg-neutral-800 rounded-2xl shadow-xl p-8">
+      <div class="text-center mb-6">
+        <div
+          class="w-16 h-16 bg-primary/10 dark:bg-primary/20 rounded-full flex items-center justify-center mx-auto mb-4">
+          <i class="fa fa-server text-2xl text-primary"></i>
+        </div>
+        <h1 class="text-2xl font-bold">NAS服务导航中心</h1>
+        <p class="text-neutral-500 dark:text-neutral-400 mt-1">请输入认证密钥以访问</p>
+      </div>
+
+      <form id="auth-form" class="space-y-4">
+        <div>
+          <label for="auth-key" class="block text-sm font-medium mb-1">认证密钥</label>
+          <input type="password" id="auth-key" class="input-field" placeholder="请输入认证密钥" required>
+        </div>
+        <button type="submit" class="btn-primary w-full">
+          <i class="fa fa-unlock-alt mr-2"></i>验证并登录
+        </button>
+      </form>
+
+      <div id="auth-error" class="mt-4 text-center text-red-500 text-sm hidden">
+        认证失败，请检查密钥是否正确
+      </div>
+    </div>
+  </div>
+
+  <!-- 主界面 (默认隐藏) -->
+  <div id="main-container" class="hidden flex flex-col min-h-screen">
+    <!-- 顶部导航栏 -->
+    <header class="bg-white dark:bg-neutral-800 shadow-sm sticky top-0 z-40 transition-all duration-300">
+      <div class="container mx-auto px-4 py-3 flex items-center justify-between">
+        <div class="flex items-center gap-2">
+          <div class="w-10 h-10 bg-primary/10 dark:bg-primary/20 rounded-lg flex items-center justify-center">
+            <i class="fa fa-server text-primary"></i>
+          </div>
+          <h1 class="text-xl font-bold">NAS服务导航</h1>
+        </div>
+
+        <!-- 搜索框 -->
+        <div class="hidden md:flex items-center flex-1 max-w-md mx-8">
+          <div class="relative w-full flex">
+            <!-- 选择框 -->
+            <select id="search-engine"
+              class="w-20 md:w-24 px-3 py-2 rounded-l-lg border border-r-0 border-neutral-300 dark:border-neutral-600 bg-neutral-100 dark:bg-neutral-700 focus:outline-none text-sm appearance-none z-10">
+              <option value="https://www.baidu.com/s?wd=">百度</option>
+              <option value="https://www.google.com/search?q=">谷歌</option>
+            </select>
+
+            <!-- 输入框 -->
+            <div class="relative flex-1">
+              <input type="text" id="search-input"
+                class="w-full px-4 py-2 rounded-r-lg border border-neutral-300 dark:border-neutral-600 bg-white dark:bg-neutral-800 focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all duration-200 pl-3"
+                placeholder="搜索服务或网络内容...">
+
+              <!-- 搜索按钮 -->
+              <button id="search-btn"
+                class="absolute right-2 top-1/2 transform -translate-y-1/2 text-neutral-500 hover:text-primary">
+                <i class="fa fa-search"></i>
+              </button>
+
+              <!-- 搜索结果下拉框 -->
+              <div id="search-results"
+                class="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-neutral-800 rounded-lg shadow-lg z-50 hidden max-h-60 overflow-y-auto border border-neutral-200 dark:border-neutral-700">
+                <!-- 搜索结果将在这里动态显示 -->
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="flex items-center gap-3">
+          <!-- 网络模式切换按钮 -->
+          <button id="network-mode-btn" class="btn-secondary hidden md:flex items-center gap-1">
+            <i class="fa fa-globe"></i>
+            <span id="network-mode-text">自动模式</span>
+          </button>
+
+          <!-- 夜间模式切换按钮 -->
+          <button id="theme-toggle"
+            class="p-2 rounded-full hover:bg-neutral-200 dark:hover:bg-neutral-700 transition-colors">
+            <i class="fa fa-moon-o dark:hidden"></i>
+            <i class="fa fa-sun-o hidden dark:inline"></i>
+          </button>
+
+          <!-- 移动端搜索按钮 -->
+          <button id="mobile-search-btn"
+            class="md:hidden p-2 rounded-full hover:bg-neutral-200 dark:hover:bg-neutral-700 transition-colors">
+            <i class="fa fa-search"></i>
+          </button>
+        </div>
+      </div>
+
+      <!-- 移动端搜索框 (默认隐藏) -->
+      <div id="mobile-search-container" class="md:hidden px-4 pb-3 hidden">
+        <div class="relative w-full flex">
+          <select id="mobile-search-engine"
+            class="w-20 px-3 py-2 rounded-l-lg border border-r-0 border-neutral-300 dark:border-neutral-600 bg-neutral-100 dark:bg-neutral-700 focus:outline-none text-sm appearance-none z-10">
+            <option value="https://www.baidu.com/s?wd=">百度</option>
+            <option value="https://www.google.com/search?q=">谷歌</option>
+          </select>
+
+          <div class="relative flex-1">
+            <input type="text" id="mobile-search-input"
+              class="w-full px-4 py-2 rounded-r-lg border border-neutral-300 dark:border-neutral-600 bg-white dark:bg-neutral-800 focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all duration-200 pl-3"
+              placeholder="搜索服务或网络内容...">
+
+            <button id="mobile-search-btn-action"
+              class="absolute right-2 top-1/2 transform -translate-y-1/2 text-neutral-500 hover:text-primary">
+              <i class="fa fa-search"></i>
+            </button>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <!-- 主内容区 -->
+    <main class="flex-1 container mx-auto px-4 py-6">
+      <!-- 系统信息卡片 -->
+      <section id="system-info" class="mb-8 bg-white dark:bg-neutral-800 rounded-xl shadow-sm p-6">
+        <div class="flex justify-between items-center mb-4">
+          <h2 class="text-xl font-bold flex items-center">
+            <i class="fa fa-tachometer mr-2 text-primary"></i>系统信息
+          </h2>
+          <span id="system-update-time" class="text-sm text-neutral-500 dark:text-neutral-400">最后更新: 加载中...</span>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <!-- CPU信息 -->
+          <div class="bg-neutral-50 dark:bg-neutral-700/50 rounded-lg p-4 card-hover">
+            <div class="flex justify-between items-start mb-2">
+              <div>
+                <h3 class="text-sm font-medium text-neutral-500 dark:text-neutral-400">CPU使用率</h3>
+                <p id="cpu-percent" class="text-2xl font-bold mt-1">-</p>
+              </div>
+              <div class="w-10 h-10 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center">
+                <i class="fa fa-microchip text-primary"></i>
+              </div>
+            </div>
+            <div class="w-full bg-neutral-200 dark:bg-neutral-600 rounded-full h-2">
+              <div id="cpu-progress" class="bg-primary h-2 rounded-full" style="width: 0%"></div>
+            </div>
+            <p id="cpu-cores" class="text-xs text-neutral-500 dark:text-neutral-400 mt-2">核心数: -</p>
+          </div>
+
+          <!-- 内存信息 -->
+          <div class="bg-neutral-50 dark:bg-neutral-700/50 rounded-lg p-4 card-hover">
+            <div class="flex justify-between items-start mb-2">
+              <div>
+                <h3 class="text-sm font-medium text-neutral-500 dark:text-neutral-400">内存使用率</h3>
+                <p id="memory-percent" class="text-2xl font-bold mt-1">-</p>
+              </div>
+              <div class="w-10 h-10 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center">
+                <i class="fa fa-flask text-secondary"></i>
+              </div>
+            </div>
+            <div class="w-full bg-neutral-200 dark:bg-neutral-600 rounded-full h-2">
+              <div id="memory-progress" class="bg-secondary h-2 rounded-full" style="width: 0%"></div>
+            </div>
+            <p id="memory-usage" class="text-xs text-neutral-500 dark:text-neutral-400 mt-2">已使用: - / -</p>
+          </div>
+
+          <!-- 磁盘信息 -->
+          <div class="bg-neutral-50 dark:bg-neutral-700/50 rounded-lg p-4 card-hover">
+            <div class="flex justify-between items-start mb-2">
+              <div>
+                <h3 class="text-sm font-medium text-neutral-500 dark:text-neutral-400">磁盘使用率</h3>
+                <p id="disk-percent" class="text-2xl font-bold mt-1">-</p>
+              </div>
+              <div class="w-10 h-10 bg-purple-100 dark:bg-purple-900/30 rounded-full flex items-center justify-center">
+                <i class="fa fa-hdd-o text-purple-600 dark:text-purple-400"></i>
+              </div>
+            </div>
+            <div class="w-full bg-neutral-200 dark:bg-neutral-600 rounded-full h-2">
+              <div id="disk-progress" class="bg-purple-600 dark:bg-purple-400 h-2 rounded-full" style="width: 0%"></div>
+            </div>
+            <p id="disk-usage" class="text-xs text-neutral-500 dark:text-neutral-400 mt-2">已使用: - / -</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- 服务分组区域 -->
+      <div id="groups-container" class="space-y-8">
+        <!-- 分组内容将通过JavaScript动态生成 -->
+      </div>
+
+      <!-- 添加新分组按钮 -->
+      <div class="fixed bottom-6 right-6">
+        <button id="add-group-btn"
+          class="w-14 h-14 rounded-full bg-primary text-white shadow-lg flex items-center justify-center transition-all duration-300 hover:bg-primary/90 hover:scale-110 active:scale-95">
+          <i class="fa fa-plus text-xl"></i>
+        </button>
+      </div>
+    </main>
+  </div>
+
+  <script>
+    // 全局状态管理
+    const state = {
+      token: localStorage.getItem('nas_dashboard_token'),
+      groups: [],
+      networkMode: localStorage.getItem('force_network_mode') || 'auto',
+      currentNetworkType: null, // 'local' 或 'public'
+      searchQuery: ''
+    };
+
+    // DOM 元素
+    const elements = {
+      authContainer: document.getElementById('auth-container'),
+      mainContainer: document.getElementById('main-container'),
+      authForm: document.getElementById('auth-form'),
+      authKeyInput: document.getElementById('auth-key'),
+      authError: document.getElementById('auth-error'),
+      groupsContainer: document.getElementById('groups-container'),
+      themeToggle: document.getElementById('theme-toggle'),
+      networkModeBtn: document.getElementById('network-mode-btn'),
+      networkModeText: document.getElementById('network-mode-text'),
+      searchInput: document.getElementById('search-input'),
+      searchBtn: document.getElementById('search-btn'),
+      searchEngine: document.getElementById('search-engine'),
+      mobileSearchBtn: document.getElementById('mobile-search-btn'),
+      mobileSearchContainer: document.getElementById('mobile-search-container'),
+      mobileSearchInput: document.getElementById('mobile-search-input'),
+      mobileSearchBtnAction: document.getElementById('mobile-search-btn-action'),
+      mobileSearchEngine: document.getElementById('mobile-search-engine'),
+      addGroupBtn: document.getElementById('add-group-btn'),
+      currentYear: document.getElementById('current-year'),
+
+      // 系统信息元素
+      cpuPercent: document.getElementById('cpu-percent'),
+      cpuCores: document.getElementById('cpu-cores'),
+      cpuProgress: document.getElementById('cpu-progress'),
+      memoryPercent: document.getElementById('memory-percent'),
+      memoryUsage: document.getElementById('memory-usage'),
+      memoryProgress: document.getElementById('memory-progress'),
+      diskPercent: document.getElementById('disk-percent'),
+      diskUsage: document.getElementById('disk-usage'),
+      diskProgress: document.getElementById('disk-progress'),
+      systemUpdateTime: document.getElementById('system-update-time'),
+
+      // 弹窗组件
+      toast: document.getElementById('toast'),
+      toastTitle: document.getElementById('toast-title'),
+      toastMessage: document.getElementById('toast-message'),
+      toastIcon: document.getElementById('toast-icon'),
+      toastClose: document.getElementById('toast-close'),
+
+      // 确认弹窗
+      confirmModal: document.getElementById('confirm-modal'),
+      confirmContent: document.getElementById('confirm-content'),
+      confirmTitle: document.getElementById('confirm-title'),
+      confirmMessage: document.getElementById('confirm-message'),
+      confirmOk: document.getElementById('confirm-ok'),
+      confirmCancel: document.getElementById('confirm-cancel'),
+
+      // 通用模态框
+      modal: document.getElementById('modal'),
+      modalContent: document.getElementById('modal-content'),
+      modalTitle: document.getElementById('modal-title'),
+      modalBody: document.getElementById('modal-body'),
+      modalFooter: document.getElementById('modal-footer'),
+      modalClose: document.getElementById('modal-close'),
+      modalCancel: document.getElementById('modal-cancel'),
+      modalSave: document.getElementById('modal-save')
+    };
+
+    // 工具函数
+    const utils = {
+      // 格式化字节为人类可读格式
+      formatBytes: (bytes, decimals = 2) => {
+        if (bytes === 0) return '0 Bytes';
+        const k = 1024;
+        const dm = decimals < 0 ? 0 : decimals;
+        const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
+      },
+
+      // 显示通知弹窗
+      showToast: (title, message, type = 'info', duration = 3000) => {
+        elements.toastTitle.textContent = title;
+        elements.toastMessage.textContent = message;
+
+        // 设置图标和颜色
+        elements.toastIcon.className = '';
+        switch (type) {
+          case 'success':
+            elements.toastIcon.className = 'text-green-500 text-xl';
+            elements.toastIcon.innerHTML = '<i class="fa fa-check-circle"></i>';
+            break;
+          case 'error':
+            elements.toastIcon.className = 'text-red-500 text-xl';
+            elements.toastIcon.innerHTML = '<i class="fa fa-exclamation-circle"></i>';
+            break;
+          case 'warning':
+            elements.toastIcon.className = 'text-yellow-500 text-xl';
+            elements.toastIcon.innerHTML = '<i class="fa fa-exclamation-triangle"></i>';
+            break;
+          default:
+            elements.toastIcon.className = 'text-primary text-xl';
+            elements.toastIcon.innerHTML = '<i class="fa fa-info-circle"></i>';
+        }
+
+        // 显示弹窗
+        elements.toast.classList.remove('translate-x-full');
+
+        // 自动关闭
+        if (duration > 0) {
+          setTimeout(() => {
+            elements.toast.classList.add('translate-x-full');
+          }, duration);
+        }
+      },
+
+      // 显示确认弹窗
+      showConfirm: (title, message, okCallback) => {
+        return new Promise((resolve) => {
+          elements.confirmTitle.textContent = title;
+          elements.confirmMessage.textContent = message;
+
+          // 显示弹窗
+          elements.confirmModal.classList.remove('hidden');
+          setTimeout(() => {
+            elements.confirmContent.classList.remove('scale-95', 'opacity-0');
+            elements.confirmContent.classList.add('scale-100', 'opacity-100');
+          }, 10);
+
+          // 确认按钮事件
+          const okHandler = () => {
+            elements.confirmModal.classList.add('hidden');
+            elements.confirmContent.classList.remove('scale-100', 'opacity-100');
+            elements.confirmContent.classList.add('scale-95', 'opacity-0');
+            elements.confirmOk.removeEventListener('click', okHandler);
+            elements.confirmCancel.removeEventListener('click', cancelHandler);
+            resolve(true);
+            if (okCallback) okCallback();
+          };
+
+          // 取消按钮事件
+          const cancelHandler = () => {
+            elements.confirmModal.classList.add('hidden');
+            elements.confirmContent.classList.remove('scale-100', 'opacity-100');
+            elements.confirmContent.classList.add('scale-95', 'opacity-0');
+            elements.confirmOk.removeEventListener('click', okHandler);
+            elements.confirmCancel.removeEventListener('click', cancelHandler);
+            resolve(false);
+          };
+
+          elements.confirmOk.addEventListener('click', okHandler);
+          elements.confirmCancel.addEventListener('click', cancelHandler);
+        });
+      },
+
+      // 显示模态框
+      showModal: (title, bodyContent, saveCallback, showFooter = true) => {
+        return new Promise((resolve) => {
+          elements.modalTitle.textContent = title;
+          elements.modalBody.innerHTML = bodyContent;
+
+          // 显示/隐藏底部按钮
+          elements.modalFooter.style.display = showFooter ? 'flex' : 'none';
+
+          // 显示弹窗
+          elements.modal.classList.remove('hidden');
+          setTimeout(() => {
+            elements.modalContent.classList.remove('scale-95', 'opacity-0');
+            elements.modalContent.classList.add('scale-100', 'opacity-100');
+          }, 10);
+
+          // 保存按钮事件
+          const saveHandler = async () => {
+            const result = await saveCallback();
+            if (result !== false) { // 如果回调返回false，则不关闭弹窗
+              elements.modal.classList.add('hidden');
+              elements.modalContent.classList.remove('scale-100', 'opacity-100');
+              elements.modalContent.classList.add('scale-95', 'opacity-0');
+              elements.modalSave.removeEventListener('click', saveHandler);
+              elements.modalClose.removeEventListener('click', closeHandler);
+              elements.modalCancel.removeEventListener('click', closeHandler);
+              resolve(true);
+            }
+          };
+
+          // 关闭按钮事件
+          const closeHandler = () => {
+            elements.modal.classList.add('hidden');
+            elements.modalContent.classList.remove('scale-100', 'opacity-100');
+            elements.modalContent.classList.add('scale-95', 'opacity-0');
+            elements.modalSave.removeEventListener('click', saveHandler);
+            elements.modalClose.removeEventListener('click', closeHandler);
+            elements.modalCancel.removeEventListener('click', closeHandler);
+            resolve(false);
+          };
+
+          elements.modalSave.addEventListener('click', saveHandler);
+          elements.modalClose.addEventListener('click', closeHandler);
+          elements.modalCancel.addEventListener('click', closeHandler);
+        });
+      },
+
+      // 获取当前时间段问候语
+      getGreeting: () => {
+        const hour = new Date().getHours();
+        if (hour < 12) return '早上好';
+        if (hour < 18) return '下午好';
+        return '晚上好';
+      },
+
+      // 检测网络环境
+      detectNetworkType: async () => {
+        // 尝试访问内网IP特征来判断
+        try {
+          // 这里使用一个常见的内网IP段进行检测
+          const testIps = ['192.168.1.1', '10.0.0.1', '172.16.0.1', '127.0.0.1'];
+
+          for (const ip of testIps) {
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 1000);
+
+            try {
+              await fetch(`http://${ip}`, {
+                mode: 'no-cors',
+                signal: controller.signal
+              });
+              clearTimeout(timeoutId);
+              return 'local';
+            } catch (e) {
+              clearTimeout(timeoutId);
+              continue;
+            }
+          }
+
+          // 如果都无法访问，默认判断为公网
+          return 'public';
+        } catch (e) {
+          console.error('网络检测失败:', e);
+          return 'public';
+        }
+      },
+
+      // 获取服务的实际访问URL
+      getServiceUrl: (service) => {
+        // 如果强制使用公网
+        if (state.networkMode === 'public' && service.url_public) {
+          return service.url_public;
+        }
+
+        // 如果强制使用内网
+        if (state.networkMode === 'local' && service.url_local) {
+          return service.url_local;
+        }
+
+        // 自动模式
+        if (state.currentNetworkType === 'local' && service.url_local) {
+          return service.url_local;
+        }
+
+        // 默认使用公网地址
+        return service.url_public || service.url_local;
+      },
+
+      // 生成默认图标（服务名首字符）
+      generateDefaultIcon: (name) => {
+        if (!name || name.trim() === '') return '';
+        const firstChar = name.charAt(0).toUpperCase();
+
+        // 创建canvas并转换为dataURL
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        canvas.width = 128;
+        canvas.height = 128;
+
+        // 背景
+        ctx.fillStyle = '#f3f4f6';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        // 文字
+        ctx.fillStyle = '#1f2937';
+        ctx.font = '64px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(firstChar, canvas.width / 2, canvas.height / 2);
+
+        return canvas.toDataURL('image/png');
+      }
+    };
+
+    // API 调用函数
+    const api = {
+      // 验证认证密钥
+      authenticate: async (authKey) => {
+        try {
+          const response = await fetch('/api/auth', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ auth_key: authKey })
+          });
+
+          const data = await response.json();
+          if (response.ok && data.success) {
+            return data.token;
+          }
+
+          throw new Error('认证失败');
+        } catch (e) {
+          console.error('认证错误:', e);
+          throw e;
+        }
+      },
+
+      // 验证token
+      verifyToken: async (token) => {
+        try {
+          const response = await fetch('/api/verify', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ token })
+          });
+
+          const data = await response.json();
+          return response.ok && data.success;
+        } catch (e) {
+          console.error('验证token错误:', e);
+          return false;
+        }
+      },
+
+      // 获取系统信息
+      getSystemInfo: async () => {
+        try {
+          const response = await fetch('/api/system-info', {
+            headers: { 'Authorization': `Bearer ${state.token}` }
+          });
+
+          if (!response.ok) throw new Error('获取系统信息失败');
+          return await response.json();
+        } catch (e) {
+          console.error('获取系统信息错误:', e);
+          throw e;
+        }
+      },
+
+      // 获取所有分组和服务
+      getGroups: async () => {
+        try {
+          const response = await fetch('/api/groups', {
+            headers: { 'Authorization': `Bearer ${state.token}` }
+          });
+
+          if (!response.ok) throw new Error('获取分组信息失败');
+          return await response.json();
+        } catch (e) {
+          console.error('获取分组信息错误:', e);
+          throw e;
+        }
+      },
+
+      // 创建分组
+      createGroup: async (name, order = 999, isNasService = false) => {
+        try {
+          const response = await fetch('/api/groups', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${state.token}`
+            },
+            body: JSON.stringify({ name, order, is_nas_service: isNasService })
+          });
+
+          if (!response.ok) throw new Error('创建分组失败');
+          return await response.json();
+        } catch (e) {
+          console.error('创建分组错误:', e);
+          throw e;
+        }
+      },
+
+      // 更新分组
+      updateGroup: async (groupId, name, order) => {
+        try {
+          const response = await fetch(`/api/groups/${groupId}`, {
+            method: 'PUT',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${state.token}`
+            },
+            body: JSON.stringify({ name, order })
+          });
+
+          if (!response.ok) throw new Error('更新分组失败');
+          return await response.json();
+        } catch (e) {
+          console.error('更新分组错误:', e);
+          throw e;
+        }
+      },
+
+      // 删除分组
+      deleteGroup: async (groupId) => {
+        try {
+          const response = await fetch(`/api/groups/${groupId}`, {
+            method: 'DELETE',
+            headers: { 'Authorization': `Bearer ${state.token}` }
+          });
+
+          if (!response.ok) throw new Error('删除分组失败');
+          return await response.json();
+        } catch (e) {
+          console.error('删除分组错误:', e);
+          throw e;
+        }
+      },
+
+      // 创建服务
+      createService: async (serviceData) => {
+        try {
+          const response = await fetch('/api/services', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${state.token}`
+            },
+            body: JSON.stringify(serviceData)
+          });
+
+          if (!response.ok) throw new Error('创建服务失败');
+          return await response.json();
+        } catch (e) {
+          console.error('创建服务错误:', e);
+          throw e;
+        }
+      },
+
+      // 更新服务
+      updateService: async (serviceId, serviceData) => {
+        try {
+          const response = await fetch(`/api/services/${serviceId}`, {
+            method: 'PUT',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${state.token}`
+            },
+            body: JSON.stringify(serviceData)
+          });
+
+          if (!response.ok) throw new Error('更新服务失败');
+          return await response.json();
+        } catch (e) {
+          console.error('更新服务错误:', e);
+          throw e;
+        }
+      },
+
+      // 删除服务
+      deleteService: async (serviceId) => {
+        try {
+          const response = await fetch(`/api/services/${serviceId}`, {
+            method: 'DELETE',
+            headers: { 'Authorization': `Bearer ${state.token}` }
+          });
+
+          if (!response.ok) throw new Error('删除服务失败');
+          return await response.json();
+        } catch (e) {
+          console.error('删除服务错误:', e);
+          throw e;
+        }
+      },
+
+      // 获取网站图标
+      // 在api.fetchIcon函数中（index.html #startLine: 768-783）
+      fetchIcon: async (url) => {
+        try {
+          // 确保URL格式正确
+          if (!url.startsWith('http://') && !url.startsWith('https://')) {
+            url = 'https://' + url;
+          }
+
+          const response = await fetch('/api/fetch-icon', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${state.token}`
+            },
+            body: JSON.stringify({ url })
+          });
+
+          if (!response.ok) throw new Error('获取图标失败');
+          return await response.json();
+        } catch (e) {
+          console.error('获取图标错误:', e);
+          throw e;
+        }
+      },
+
+      // 上传图标
+      uploadIcon: async (imageData) => {
+        try {
+          const response = await fetch('/api/upload-icon', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${state.token}`
+            },
+            body: JSON.stringify({ image: imageData })
+          });
+
+          if (!response.ok) throw new Error('上传图标失败');
+          return await response.json();
+        } catch (e) {
+          console.error('上传图标错误:', e);
+          throw e;
+        }
+      },
+
+      // 获取设置
+      getSettings: async () => {
+        try {
+          const response = await fetch('/api/settings', {
+            headers: { 'Authorization': `Bearer ${state.token}` }
+          });
+
+          if (!response.ok) throw new Error('获取设置失败');
+          return await response.json();
+        } catch (e) {
+          console.error('获取设置错误:', e);
+          throw e;
+        }
+      },
+
+      // 保存设置
+      saveSettings: async (settings) => {
+        try {
+          const response = await fetch('/api/settings', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${state.token}`
+            },
+            body: JSON.stringify(settings)
+          });
+
+          if (!response.ok) throw new Error('保存设置失败');
+          return await response.json();
+        } catch (e) {
+          console.error('保存设置错误:', e);
+          throw e;
+        }
+      }
+    };
+
+    // 渲染函数
+    const render = {
+      // 渲染系统信息
+      systemInfo: (data) => {
+        // CPU信息
+        elements.cpuPercent.textContent = `${data.cpu.percent}%`;
+        elements.cpuCores.textContent = `核心数: ${data.cpu.count}`;
+        elements.cpuProgress.style.width = `${data.cpu.percent}%`;
+
+        // 内存信息
+        elements.memoryPercent.textContent = `${data.memory.percent}%`;
+        elements.memoryUsage.textContent = `已使用: ${utils.formatBytes(data.memory.used)} / ${utils.formatBytes(data.memory.total)}`;
+        elements.memoryProgress.style.width = `${data.memory.percent}%`;
+
+        // 磁盘信息
+        elements.diskPercent.textContent = `${data.disk.percent}%`;
+        elements.diskUsage.textContent = `已使用: ${utils.formatBytes(data.disk.used)} / ${utils.formatBytes(data.disk.total)}`;
+        elements.diskProgress.style.width = `${data.disk.percent}%`;
+
+        // 更新时间
+        const date = new Date(data.timestamp);
+        elements.systemUpdateTime.textContent = `最后更新: ${date.toLocaleString()}`;
+      },
+
+      // 渲染所有分组和服务
+      groups: () => {
+        elements.groupsContainer.innerHTML = '';
+        let filteredGroups = state.groups;
+        let hasServices = false;
+        // 过滤分组
+        if (state.searchQuery) {
+          const query = state.searchQuery.toLowerCase();
+          filteredGroups = state.groups.filter(group => {
+            // 检查分组名是否匹配
+            if (group.name.toLowerCase().includes(query)) {
+              hasServices = hasServices || group.services.length > 0;
+              return true;
+            }
+
+            // 检查服务是否匹配
+            const matchedServices = group.services.filter(service =>
+              service.name.toLowerCase().includes(query)
+            );
+
+            if (matchedServices.length > 0) {
+              hasServices = true;
+              group.services = matchedServices; // 只显示匹配的服务
+              return true;
+            }
+
+            return false;
+          });
+        } else {
+          // 没有搜索条件时，检查是否有服务
+          hasServices = state.groups.some(group => group.services.length > 0);
+        }
+
+        if (filteredGroups.length === 0 || !hasServices) {
+          elements.groupsContainer.innerHTML = `
+            <div class="text-center py-12 bg-white dark:bg-neutral-800 rounded-xl shadow-sm">
+                <i class="fa fa-search text-4xl text-neutral-300 dark:text-neutral-600 mb-4"></i>
+                <p class="text-neutral-500 dark:text-neutral-400">没有找到匹配的服务或分组</p>
+            </div>
+        `;
+          return;
+        }
+
+
+        // 渲染每个分组
+        filteredGroups.forEach(group => {
+          const groupElement = document.createElement('section');
+          groupElement.className = 'bg-white dark:bg-neutral-800 rounded-xl shadow-sm overflow-hidden';
+          groupElement.dataset.groupId = group.id;
+
+          // 分组标题栏
+          let headerActions = `
+                        <div class="flex gap-2">
+                            <button class="edit-group-btn p-2 rounded hover:bg-neutral-200 dark:hover:bg-neutral-700 transition-colors" title="编辑分组">
+                                <i class="fa fa-pencil text-neutral-500"></i>
+                            </button>
+                            <button class="delete-group-btn p-2 rounded hover:bg-neutral-200 dark:hover:bg-neutral-700 transition-colors" title="删除分组">
+                                <i class="fa fa-trash text-neutral-500"></i>
+                            </button>
+                        </div>
+                    `;
+
+          // NAS服务组显示网络模式切换按钮
+          if (group.is_nas_service) {
+            headerActions = `
+                            <div class="flex gap-2 items-center">
+                                <span class="text-sm text-neutral-500 dark:text-neutral-400 mr-1">网络模式:</span>
+                                <select class="network-mode-select text-sm bg-neutral-100 dark:bg-neutral-700 border-none rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-primary">
+                                    <option value="auto">自动</option>
+                                    <option value="local">内网</option>
+                                    <option value="public">公网</option>
+                                </select>
+                                ${headerActions}
+                            </div>
+                        `;
+          }
+
+          groupElement.innerHTML = `
+                        <div class="p-4 border-b border-neutral-200 dark:border-neutral-700 flex justify-between items-center">
+                            <h2 class="text-lg font-bold flex items-center">
+                                <i class="fa fa-folder-open mr-2 text-primary"></i>${group.name}
+                            </h2>
+                            <div class="flex items-center gap-3">
+                                ${headerActions}
+                                <button class="add-service-btn btn-secondary text-sm flex items-center gap-1">
+                                    <i class="fa fa-plus"></i> 添加服务
+                                </button>
+                            </div>
+                        </div>
+                        <div class="p-4 service-grid grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+                            <!-- 服务项将在这里动态生成 -->
+                        </div>
+                    `;
+
+          elements.groupsContainer.appendChild(groupElement);
+
+          // 设置网络模式选择器
+          if (group.is_nas_service) {
+            const modeSelect = groupElement.querySelector('.network-mode-select');
+            modeSelect.value = state.networkMode;
+            modeSelect.addEventListener('change', async (e) => {
+              state.networkMode = e.target.value;
+              localStorage.setItem('force_network_mode', state.networkMode);
+              await api.saveSettings({ force_network_mode: state.networkMode });
+              elements.networkModeText.textContent =
+                state.networkMode === 'auto' ? '自动模式' :
+                  state.networkMode === 'local' ? '内网模式' : '公网模式';
+              utils.showToast('设置已更新', `网络模式已切换为${state.networkMode === 'auto' ? '自动' : state.networkMode === 'local' ? '内网' : '公网'}模式`);
+            });
+          }
+
+          // 添加服务按钮事件
+          groupElement.querySelector('.add-service-btn').addEventListener('click', () => {
+            handlers.openAddServiceModal(group.id);
+          });
+
+          // 编辑分组按钮事件
+          groupElement.querySelector('.edit-group-btn').addEventListener('click', () => {
+            handlers.openEditGroupModal(group.id);
+          });
+
+          // 删除分组按钮事件
+          groupElement.querySelector('.delete-group-btn').addEventListener('click', () => {
+            handlers.deleteGroup(group.id, group.name);
+          });
+
+          // 渲染服务项
+          const serviceGrid = groupElement.querySelector('.service-grid');
+
+          if (group.services.length === 0) {
+            serviceGrid.innerHTML = `
+                            <div class="col-span-full py-8 text-center text-neutral-500 dark:text-neutral-400">
+                                <i class="fa fa-link text-3xl mb-2"></i>
+                                <p>该分组下暂无服务</p>
+                            </div>
+                        `;
+          } else {
+            group.services.forEach(service => {
+              const serviceUrl = utils.getServiceUrl(service);
+              const serviceIcon = service.icon || utils.generateDefaultIcon(service.name);
+
+              const serviceElement = document.createElement('div');
+              serviceElement.className = 'service-card bg-neutral-50 dark:bg-neutral-700/50 rounded-lg overflow-hidden card-hover';
+              serviceElement.dataset.serviceId = service.id;
+
+              // 修改服务卡片的渲染部分
+              serviceElement.innerHTML = `
+    <div class="relative h-full group">
+        <a href="${serviceUrl}" target="_blank" class="block h-full">
+            <div class="h-20 flex items-center justify-center bg-white dark:bg-neutral-800 p-2">
+                <img src="${serviceIcon}" alt="${service.name}" class="max-h-full max-w-full object-contain">
+            </div>
+            <div class="p-2 text-center">
+                <h3 class="text-sm font-medium truncate" title="${service.name}">${service.name}</h3>
+                <div class="flex justify-center gap-1 mt-1">
+                    ${service.url_local ? '<span class="badge bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400 text-xs">内网</span>' : ''}
+                    ${service.url_public ? '<span class="badge bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400 text-xs">公网</span>' : ''}
+                </div>
+            </div>
+        </a>
+        <div class="absolute top-2 right-2 flex gap-1">
+            <button class="edit-service-btn w-7 h-7 rounded-full bg-white/90 dark:bg-neutral-800/90 flex items-center justify-center text-neutral-700 dark:text-neutral-300 hover:bg-white dark:hover:bg-neutral-800 shadow-md border border-neutral-300/50 dark:border-neutral-600/50 transition-all duration-200 hover:scale-110" title="编辑">
+                <i class="fa fa-pencil text-xs"></i>
+            </button>
+            <button class="delete-service-btn w-7 h-7 rounded-full bg-white/90 dark:bg-neutral-800/90 flex items-center justify-center text-red-600 dark:text-red-400 hover:bg-white dark:hover:bg-neutral-800 shadow-md border border-neutral-300/50 dark:border-neutral-600/50 transition-all duration-200 hover:scale-110" title="删除">
+                <i class="fa fa-trash text-xs"></i>
+            </button>
+        </div>
+    </div>
+`;
+
+              serviceGrid.appendChild(serviceElement);
+
+              // 编辑服务按钮事件
+              serviceElement.querySelector('.edit-service-btn').addEventListener('click', (e) => {
+                e.stopPropagation();
+                e.preventDefault();
+                handlers.openEditServiceModal(service.id, group.id);
+              });
+
+              // 删除服务按钮事件
+              serviceElement.querySelector('.delete-service-btn').addEventListener('click', (e) => {
+                e.stopPropagation();
+                e.preventDefault();
+                handlers.deleteService(service.id, service.name);
+              });
+            });
+          }
+        });
+      },
+
+      // 初始化主题
+      theme: () => {
+        // 检查用户偏好或保存的设置
+        const isDarkMode = localStorage.getItem('dark_mode') === 'true' ||
+          (localStorage.getItem('dark_mode') === null &&
+            window.matchMedia('(prefers-color-scheme: dark)').matches);
+
+        if (isDarkMode) {
+          document.documentElement.classList.add('dark');
+        }
+      },
+    };
+
+    // 事件处理函数
+    const handlers = {
+      // 处理认证提交
+      authSubmit: async (e) => {
+        e.preventDefault();
+        const authKey = elements.authKeyInput.value.trim();
+
+        if (!authKey) {
+          elements.authError.textContent = '请输入认证密钥';
+          elements.authError.classList.remove('hidden');
+          return;
+        }
+
+        try {
+          const token = await api.authenticate(authKey);
+          if (token) {
+            state.token = token;
+            localStorage.setItem('nas_dashboard_token', token);
+            handlers.loadMainContent();
+          } else {
+            elements.authError.classList.remove('hidden');
+          }
+        } catch (e) {
+          elements.authError.classList.remove('hidden');
+        }
+      },
+
+      // 加载主内容
+      loadMainContent: async () => {
+        try {
+          // 隐藏认证界面，显示主界面
+          elements.authContainer.classList.add('hidden');
+          elements.mainContainer.classList.remove('hidden');
+
+          // 获取设置
+          const settings = await api.getSettings();
+          if (settings.force_network_mode) {
+            state.networkMode = settings.force_network_mode;
+            localStorage.setItem('force_network_mode', state.networkMode);
+            elements.networkModeText.textContent =
+              state.networkMode === 'auto' ? '自动模式' :
+                state.networkMode === 'local' ? '内网模式' : '公网模式';
+          }
+
+          // 加载系统信息
+          handlers.loadSystemInfo();
+
+          // 加载分组和服务
+          handlers.loadGroups();
+
+          // 定时刷新系统信息
+          setInterval(handlers.loadSystemInfo, 10000);
+        } catch (e) {
+          console.error('加载主内容错误:', e);
+          utils.showToast('加载失败', '无法加载内容，请重新登录', 'error');
+          localStorage.removeItem('nas_dashboard_token');
+          state.token = null;
+          elements.authContainer.classList.remove('hidden');
+          elements.mainContainer.classList.add('hidden');
+        }
+      },
+
+      // 加载系统信息
+      loadSystemInfo: async () => {
+        try {
+          const data = await api.getSystemInfo();
+          render.systemInfo(data);
+        } catch (e) {
+          console.error('加载系统信息失败:', e);
+        }
+      },
+
+      // 加载分组和服务
+      loadGroups: async () => {
+        try {
+          state.groups = await api.getGroups();
+          render.groups();
+        } catch (e) {
+          console.error('加载分组失败:', e);
+        }
+      },
+
+      // 切换主题
+      toggleTheme: () => {
+        const isDarkMode = document.documentElement.classList.toggle('dark');
+        localStorage.setItem('dark_mode', isDarkMode);
+      },
+
+      // 切换网络模式
+      toggleNetworkMode: () => {
+        const modes = ['auto', 'local', 'public'];
+        const currentIndex = modes.indexOf(state.networkMode);
+        const nextIndex = (currentIndex + 1) % modes.length;
+        state.networkMode = modes[nextIndex];
+
+        localStorage.setItem('force_network_mode', state.networkMode);
+        api.saveSettings({ force_network_mode: state.networkMode });
+
+        elements.networkModeText.textContent =
+          state.networkMode === 'auto' ? '自动模式' :
+            state.networkMode === 'local' ? '内网模式' : '公网模式';
+
+        utils.showToast('设置已更新', `网络模式已切换为${state.networkMode === 'auto' ? '自动' : state.networkMode === 'local' ? '内网' : '公网'}模式`);
+        render.groups();
+      },
+
+      // 搜索处理
+      // 搜索处理
+      handleSearch: (e) => {
+        if (e.key === 'Enter' || e.type === 'click') {
+          const query = elements.searchInput.value.trim();
+          const engine = elements.searchEngine.value;
+
+          if (query) {
+            // 先尝试搜索本地服务
+            state.searchQuery = query;
+            render.groups();
+
+            // 隐藏搜索结果下拉框
+            document.getElementById('search-results')?.classList.add('hidden');
+
+            // 检查是否有匹配的搜索结果
+            const hasResults = elements.groupsContainer.innerHTML.indexOf('没有找到匹配的服务或分组') === -1;
+
+            if (hasResults) {
+              // 有搜索结果，找到第一个服务卡片并访问
+              const firstServiceCard = elements.groupsContainer.querySelector('.service-card a');
+              if (firstServiceCard) {
+                firstServiceCard.click();
+                return;
+              }
+            }
+
+            // 没有搜索结果，进行网页搜索
+            window.open(engine + encodeURIComponent(query), '_blank');
+          }
+        }
+      },
+      // 添加实时搜索功能
+      // 添加实时搜索功能
+      handleRealTimeSearch: (e) => {
+        const query = e.target.value.trim();
+        state.searchQuery = query;
+        render.groups();
+
+        // 显示搜索建议
+        handlers.showSearchSuggestions(query);
+      },
+
+      // 显示搜索建议
+      showSearchSuggestions: (query) => {
+        const resultsContainer = document.getElementById('search-results');
+        if (!resultsContainer) return;
+
+        if (!query) {
+          resultsContainer.classList.add('hidden');
+          return;
+        }
+
+        const suggestions = [];
+        const queryLower = query.toLowerCase();
+
+        // 收集所有匹配的服务
+        state.groups.forEach(group => {
+          group.services.forEach(service => {
+            if (service.name.toLowerCase().includes(queryLower)) {
+              suggestions.push({
+                type: 'service',
+                name: service.name,
+                group: group.name,
+                url: utils.getServiceUrl(service)
+              });
+            }
+          });
+        });
+
+        if (suggestions.length > 0) {
+          let html = '';
+          suggestions.forEach((item, index) => {
+            html += `
+        <div class="p-3 hover:bg-neutral-100 dark:hover:bg-neutral-700 border-b border-neutral-200 dark:border-neutral-700 last:border-b-0 cursor-pointer search-suggestion" data-index="${index}">
+          <div class="font-medium">${item.name}</div>
+          <div class="text-xs text-neutral-500 dark:text-neutral-400">${item.group} - 点击访问</div>
+        </div>
+      `;
+          });
+
+          // 添加网络搜索选项
+          html += `
+      <div class="p-3 hover:bg-neutral-100 dark:hover:bg-neutral-700 cursor-pointer search-network-btn">
+        <div class="font-medium">搜索网络: "${query}"</div>
+        <div class="text-xs text-neutral-500 dark:text-neutral-400">点击在新标签页中搜索</div>
+      </div>
+    `;
+
+          resultsContainer.innerHTML = html;
+          resultsContainer.classList.remove('hidden');
+
+          // 绑定建议点击事件
+          resultsContainer.querySelectorAll('.search-suggestion').forEach(item => {
+            item.addEventListener('click', () => {
+              const index = parseInt(item.dataset.index);
+              const suggestion = suggestions[index];
+              window.open(suggestion.url, '_blank');
+              resultsContainer.classList.add('hidden');
+              elements.searchInput.value = '';
+            });
+          });
+
+          // 绑定网络搜索点击事件
+          resultsContainer.querySelector('.search-network-btn').addEventListener('click', () => {
+            const engine = elements.searchEngine.value;
+            window.open(engine + encodeURIComponent(query), '_blank');
+            resultsContainer.classList.add('hidden');
+            elements.searchInput.value = '';
+          });
+        } else {
+          // 没有匹配结果，显示网络搜索选项
+          resultsContainer.innerHTML = `
+      <div class="p-3 hover:bg-neutral-100 dark:hover:bg-neutral-700 cursor-pointer search-network-btn">
+        <div class="font-medium">搜索网络: "${query}"</div>
+        <div class="text-xs text-neutral-500 dark:text-neutral-400">点击在新标签页中搜索</div>
+      </div>
+    `;
+          resultsContainer.classList.remove('hidden');
+
+          // 绑定网络搜索点击事件
+          resultsContainer.querySelector('.search-network-btn').addEventListener('click', () => {
+            const engine = elements.searchEngine.value;
+            window.open(engine + encodeURIComponent(query), '_blank');
+            resultsContainer.classList.add('hidden');
+            elements.searchInput.value = '';
+          });
+        }
+      },
+      // 移动端搜索处理
+      handleMobileSearch: (e) => {
+        if (e.key === 'Enter' || e.type === 'click') {
+          const query = elements.mobileSearchInput.value.trim();
+          const engine = elements.mobileSearchEngine.value;
+
+          if (query) {
+            window.open(engine + encodeURIComponent(query), '_blank');
+            elements.mobileSearchInput.value = '';
+          }
+        }
+      },
+
+      // 切换移动端搜索框显示
+      toggleMobileSearch: () => {
+        elements.mobileSearchContainer.classList.toggle('hidden');
+        if (!elements.mobileSearchContainer.classList.contains('hidden')) {
+          elements.mobileSearchInput.focus();
+        }
+      },
+
+      // 打开添加分组模态框
+      openAddGroupModal: () => {
+        const formId = 'add-group-form';
+        const formHtml = `
+                    <form id="${formId}" class="space-y-4">
+                        <div>
+                            <label for="group-name" class="block text-sm font-medium mb-1">分组名称</label>
+                            <input type="text" id="group-name" class="input-field" placeholder="请输入分组名称" required>
+                        </div>
+                        <div>
+                            <label for="group-order" class="block text-sm font-medium mb-1">排序号 (数字越小越靠前)</label>
+                            <input type="number" id="group-order" class="input-field" value="999" min="0">
+                        </div>
+                        <div class="flex items-center">
+                            <input type="checkbox" id="is-nas-service" class="mr-2">
+                            <label for="is-nas-service" class="text-sm">标记为NAS服务组 (支持公网/内网切换)</label>
+                        </div>
+                    </form>
+                `;
+
+        utils.showModal('添加新分组', formHtml, async () => {
+          const form = document.getElementById(formId);
+          if (!form.checkValidity()) {
+            form.reportValidity();
+            return false;
+          }
+
+          const name = document.getElementById('group-name').value.trim();
+          const order = parseInt(document.getElementById('group-order').value) || 999;
+          const isNasService = document.getElementById('is-nas-service').checked;
+
+          if (!name) {
+            utils.showToast('输入错误', '分组名称不能为空', 'error');
+            return false;
+          }
+
+          try {
+            await api.createGroup(name, order, isNasService);
+            utils.showToast('创建成功', `分组"${name}"已创建`);
+            handlers.loadGroups();
+            return true;
+          } catch (e) {
+            utils.showToast('创建失败', '无法创建分组，请重试', 'error');
+            return false;
+          }
+        });
+      },
+
+      // 打开编辑分组模态框
+      openEditGroupModal: (groupId) => {
+        const group = state.groups.find(g => g.id === groupId);
+        if (!group) return;
+
+        const formId = 'edit-group-form';
+        const formHtml = `
+                    <form id="${formId}" class="space-y-4">
+                        <div>
+                            <label for="edit-group-name" class="block text-sm font-medium mb-1">分组名称</label>
+                            <input type="text" id="edit-group-name" class="input-field" value="${group.name}" required>
+                        </div>
+                        <div>
+                            <label for="edit-group-order" class="block text-sm font-medium mb-1">排序号 (数字越小越靠前)</label>
+                            <input type="number" id="edit-group-order" class="input-field" value="${group.order}" min="0">
+                        </div>
+                        ${!group.is_nas_service ? `
+                        <div class="flex items-center">
+                            <input type="checkbox" id="edit-is-nas-service" class="mr-2">
+                            <label for="edit-is-nas-service" class="text-sm">标记为NAS服务组 (支持公网/内网切换)</label>
+                        </div>
+                        ` : ''}
+                    </form>
+                `;
+
+        utils.showModal('编辑分组', formHtml, async () => {
+          const form = document.getElementById(formId);
+          if (!form.checkValidity()) {
+            form.reportValidity();
+            return false;
+          }
+
+          const name = document.getElementById('edit-group-name').value.trim();
+          const order = parseInt(document.getElementById('edit-group-order').value) || 999;
+
+          if (!name) {
+            utils.showToast('输入错误', '分组名称不能为空', 'error');
+            return false;
+          }
+
+          try {
+            await api.updateGroup(groupId, name, order);
+            utils.showToast('更新成功', `分组"${name}"已更新`);
+            handlers.loadGroups();
+            return true;
+          } catch (e) {
+            utils.showToast('更新失败', '无法更新分组，请重试', 'error');
+            return false;
+          }
+        });
+      },
+
+      // 删除分组
+      deleteGroup: async (groupId, groupName) => {
+        const confirmed = await utils.showConfirm(
+          '确认删除',
+          `确定要删除分组"${groupName}"吗？该分组下的所有服务也将被删除。`,
+          async () => {
+            try {
+              await api.deleteGroup(groupId);
+              utils.showToast('删除成功', `分组"${groupName}"已删除`);
+              handlers.loadGroups();
+            } catch (e) {
+              utils.showToast('删除失败', '无法删除分组，请重试', 'error');
+            }
+          }
+        );
+      },
+
+      // 打开添加服务模态框
+      openAddServiceModal: (groupId) => {
+        const group = state.groups.find(g => g.id === groupId);
+        if (!group) return;
+
+        const formId = 'add-service-form';
+        let urlFields = `
+        <div>
+            <label for="service-url" class="block text-sm font-medium mb-1">服务URL</label>
+            <input type="url" id="service-url" class="input-field" placeholder="https://example.com" required>
+        </div>
+    `;
+
+        if (group.is_nas_service) {
+          urlFields = `
+            <div>
+                <label for="service-url-local" class="block text-sm font-medium mb-1">内网地址</label>
+                <input type="url" id="service-url-local" class="input-field" placeholder="http://192.168.1.100:8080">
+            </div>
+            <div>
+                <label for="service-url-public" class="block text-sm font-medium mb-1">公网地址</label>
+                <input type="url" id="service-url-public" class="input-field" placeholder="https://service.102419.xyz" required>
+            </div>
+        `;
+        }
+
+        const formHtml = `
+        <form id="${formId}" class="space-y-4">
+            <div>
+                <label for="service-name" class="block text-sm font-medium mb-1">服务名称</label>
+                <input type="text" id="service-name" class="input-field" placeholder="请输入服务名称" required>
+            </div>
+            ${urlFields}
+            <div>
+                <label class="block text-sm font-medium mb-1">图标</label>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <button type="button" id="fetch-icon-btn" class="btn-secondary w-full flex items-center justify-center gap-1">
+                            <i class="fa fa-download"></i> 自动获取图标
+                        </button>
+                    </div>
+                    <div>
+                        <label class="btn-secondary w-full flex items-center justify-center gap-1 cursor-pointer">
+                            <i class="fa fa-upload"></i> 上传自定义图标
+                            <input type="file" id="upload-icon-btn" accept="image/png,image/jpeg" class="hidden">
+                        </label>
+                    </div>
+                </div>
+                <input type="hidden" id="service-icon" value="">
+                <div class="mt-3 flex justify-center">
+                    <div id="icon-preview" class="w-24 h-24 bg-neutral-100 dark:bg-neutral-700 rounded flex items-center justify-center overflow-hidden">
+                        <i class="fa fa-question text-neutral-400"></i>
+                    </div>
+                </div>
+            </div>
+            <div>
+                <label for="service-order" class="block text-sm font-medium mb-1">排序号 (数字越小越靠前)</label>
+                <input type="number" id="service-order" class="input-field" value="999" min="0">
+            </div>
+        </form>
+    `;
+
+        utils.showModal('添加新服务', formHtml, async () => {
+          // 保存逻辑保持不变...
+          const form = document.getElementById(formId);
+          if (!form.checkValidity()) {
+            form.reportValidity();
+            return false;
+          }
+
+          const name = document.getElementById('service-name').value.trim();
+          const order = parseInt(document.getElementById('service-order').value) || 999;
+          const icon = document.getElementById('service-icon').value;
+
+          let urlPublic = '';
+          let urlLocal = '';
+
+          if (group.is_nas_service) {
+            urlLocal = document.getElementById('service-url-local').value.trim();
+            urlPublic = document.getElementById('service-url-public').value.trim();
+
+            if (!urlPublic) {
+              utils.showToast('输入错误', '公网地址不能为空', 'error');
+              return false;
+            }
+          } else {
+            urlPublic = document.getElementById('service-url').value.trim();
+            if (!urlPublic) {
+              utils.showToast('输入错误', '服务URL不能为空', 'error');
+              return false;
+            }
+          }
+
+          if (!name) {
+            utils.showToast('输入错误', '服务名称不能为空', 'error');
+            return false;
+          }
+
+          try {
+            await api.createService({
+              group_id: groupId,
+              name,
+              url_public: urlPublic,
+              url_local: urlLocal,
+              icon,
+              order
+            });
+
+            utils.showToast('创建成功', `服务"${name}"已创建`);
+            handlers.loadGroups();
+            return true;
+          } catch (e) {
+            utils.showToast('创建失败', '无法创建服务，请重试', 'error');
+            return false;
+          }
+        });
+
+        // 在模态框显示后绑定事件（使用setTimeout确保DOM已渲染）
+        setTimeout(() => {
+          // 自动获取图标按钮事件
+          const fetchIconBtn = document.getElementById('fetch-icon-btn');
+          if (fetchIconBtn) {
+            fetchIconBtn.addEventListener('click', async () => {
+              let url = '';
+              if (group.is_nas_service) {
+                url = document.getElementById('service-url-public')?.value.trim() ||
+                  document.getElementById('service-url-local')?.value.trim();
+              } else {
+                url = document.getElementById('service-url')?.value.trim();
+              }
+
+              if (!url) {
+                utils.showToast('输入错误', '请先填写服务URL', 'error');
+                return;
+              }
+
+              try {
+                utils.showToast('获取中', '正在尝试获取图标...', 'info', 0);
+                const result = await api.fetchIcon(url);
+                elements.toast.classList.add('translate-x-full');
+
+                if (result.success && result.icon) {
+                  document.getElementById('service-icon').value = result.icon;
+                  const previewElement = document.getElementById('icon-preview');
+                  if (previewElement) {
+                    previewElement.innerHTML = ``;
+                  }
+                  utils.showToast('获取成功', '已成功获取图标');
+                } else {
+                  utils.showToast('获取失败', '无法获取图标，请尝试手动上传', 'warning');
+                }
+              } catch (e) {
+                elements.toast.classList.add('translate-x-full');
+                utils.showToast('获取失败', '获取图标时发生错误', 'error');
+              }
+            });
+          }
+
+          // 上传图标按钮事件
+          const uploadIconBtn = document.getElementById('upload-icon-btn');
+          if (uploadIconBtn) {
+            uploadIconBtn.addEventListener('change', async (e) => {
+              const file = e.target.files[0];
+              if (!file) return;
+
+              if (file.size > 2 * 1024 * 1024) {
+                utils.showToast('文件过大', '图标文件不能超过2MB', 'error');
+                return;
+              }
+
+              if (!file.type.startsWith('image/')) {
+                utils.showToast('文件类型错误', '请上传图片文件', 'error');
+                return;
+              }
+
+              try {
+                const reader = new FileReader();
+                reader.onload = async (event) => {
+                  try {
+                    utils.showToast('处理中', '正在处理图标...', 'info', 0);
+                    const result = await api.uploadIcon(event.target.result);
+                    elements.toast.classList.add('translate-x-full');
+
+                    if (result.success && result.icon) {
+                      document.getElementById('service-icon').value = result.icon;
+                      document.getElementById('icon-preview').innerHTML = ``;
+                      utils.showToast('上传成功', '图标已上传并处理');
+                    } else {
+                      utils.showToast('上传失败', '无法处理图标，请重试', 'error');
+                    }
+                  } catch (e) {
+                    elements.toast.classList.add('translate-x-full');
+                    utils.showToast('上传失败', '上传图标时发生错误', 'error');
+                  }
+                };
+                reader.readAsDataURL(file);
+              } catch (e) {
+                utils.showToast('上传失败', '无法读取文件，请重试', 'error');
+              }
+            });
+          }
+        }, 100);
+      },
+      // 打开编辑服务模态框
+      openEditServiceModal: (serviceId, groupId) => {
+        const group = state.groups.find(g => g.id === groupId);
+        const service = group?.services.find(s => s.id === serviceId);
+        if (!group || !service) return;
+
+        const formId = 'edit-service-form';
+        let urlFields = `
+                    <div>
+                        <label for="edit-service-url" class="block text-sm font-medium mb-1">服务URL</label>
+                        <input type="url" id="edit-service-url" class="input-field" value="${service.url_public || ''}" required>
+                    </div>
+                `;
+
+        // NAS服务组显示两个URL字段
+        if (group.is_nas_service) {
+          urlFields = `
+                        <div>
+                            <label for="edit-service-url-local" class="block text-sm font-medium mb-1">内网地址</label>
+                            <input type="url" id="edit-service-url-local" class="input-field" value="${service.url_local || ''}">
+                        </div>
+                        <div>
+                            <label for="edit-service-url-public" class="block text-sm font-medium mb-1">公网地址</label>
+                            <input type="url" id="edit-service-url-public" class="input-field" value="${service.url_public || ''}" required>
+                        </div>
+                    `;
+        }
+
+        // 图标预览
+        const iconPreview = service.icon
+          ? `<img src="${service.icon}" alt="预览" class="w-full h-full object-contain">`
+          : `<div class="text-center">
+                         <span class="text-3xl font-bold">${service.name.charAt(0).toUpperCase()}</span>
+                       </div>`;
+
+        const formHtml = `
+                    <form id="${formId}" class="space-y-4">
+                        <div>
+                            <label for="edit-service-name" class="block text-sm font-medium mb-1">服务名称</label>
+                            <input type="text" id="edit-service-name" class="input-field" value="${service.name}" required>
+                        </div>
+                        ${urlFields}
+                        <div>
+                            <label class="block text-sm font-medium mb-1">图标</label>
+                            <div class="grid grid-cols-2 gap-4">
+                                <div>
+                                    <button type="button" id="edit-fetch-icon-btn" class="btn-secondary w-full flex items-center justify-center gap-1">
+                                        <i class="fa fa-download"></i> 自动获取图标
+                                    </button>
+                                </div>
+                                <div>
+                                    <label class="btn-secondary w-full flex items-center justify-center gap-1 cursor-pointer">
+                                        <i class="fa fa-upload"></i> 上传自定义图标
+                                        <input type="file" id="edit-upload-icon-btn" accept="image/png,image/jpeg" class="hidden">
+                                    </label>
+                                </div>
+                            </div>
+                            <input type="hidden" id="edit-service-icon" value="${service.icon || ''}">
+                            <div class="mt-3 flex justify-center">
+                                <div id="edit-icon-preview" class="w-24 h-24 bg-neutral-100 dark:bg-neutral-700 rounded flex items-center justify-center overflow-hidden">
+                                    ${iconPreview}
+                                </div>
+                            </div>
+                        </div>
+                        <div>
+                            <label for="edit-service-order" class="block text-sm font-medium mb-1">排序号 (数字越小越靠前)</label>
+                            <input type="number" id="edit-service-order" class="input-field" value="${service.order || 999}" min="0">
+                        </div>
+                    </form>
+                `;
+
+        utils.showModal('编辑服务', formHtml, async () => {
+          const form = document.getElementById(formId);
+          if (!form.checkValidity()) {
+            form.reportValidity();
+            return false;
+          }
+
+          const name = document.getElementById('edit-service-name').value.trim();
+          const order = parseInt(document.getElementById('edit-service-order').value) || 999;
+          const icon = document.getElementById('edit-service-icon').value;
+
+          let urlPublic = '';
+          let urlLocal = '';
+
+          if (group.is_nas_service) {
+            urlLocal = document.getElementById('edit-service-url-local').value.trim();
+            urlPublic = document.getElementById('edit-service-url-public').value.trim();
+
+            if (!urlPublic) {
+              utils.showToast('输入错误', '公网地址不能为空', 'error');
+              return false;
+            }
+          } else {
+            urlPublic = document.getElementById('edit-service-url').value.trim();
+            if (!urlPublic) {
+              utils.showToast('输入错误', '服务URL不能为空', 'error');
+              return false;
+            }
+          }
+
+          if (!name) {
+            utils.showToast('输入错误', '服务名称不能为空', 'error');
+            return false;
+          }
+
+          try {
+            await api.updateService(serviceId, {
+              name,
+              url_public: urlPublic,
+              url_local: urlLocal,
+              icon,
+              order
+            });
+
+            utils.showToast('更新成功', `服务"${name}"已更新`);
+            handlers.loadGroups();
+            return true;
+          } catch (e) {
+            utils.showToast('更新失败', '无法更新服务，请重试', 'error');
+            return false;
+          }
+        });
+        setTimeout(() => {
+
+          // 自动获取图标按钮事件
+          document.getElementById('edit-fetch-icon-btn').addEventListener('click', async () => {
+            let url = '';
+            if (group.is_nas_service) {
+              url = document.getElementById('edit-service-url-public').value.trim() ||
+                document.getElementById('edit-service-url-local').value.trim();
+            } else {
+              url = document.getElementById('edit-service-url').value.trim();
+            }
+
+            if (!url) {
+              utils.showToast('输入错误', '请先填写服务URL', 'error');
+              return;
+            }
+
+            try {
+              utils.showToast('获取中', '正在尝试获取图标...', 'info', 0);
+              const result = await api.fetchIcon(url);
+              elements.toast.classList.add('translate-x-full');
+
+              if (result.success && result.icon) {
+                document.getElementById('edit-service-icon').value = result.icon;
+                document.getElementById('edit-icon-preview').innerHTML = `<img src="${result.icon}" alt="预览" class="w-full h-full object-contain">`;
+                utils.showToast('获取成功', '已成功获取图标');
+              } else {
+                utils.showToast('获取失败', '无法获取图标，请尝试手动上传', 'warning');
+              }
+            } catch (e) {
+              elements.toast.classList.add('translate-x-full');
+              utils.showToast('获取失败', '获取图标时发生错误', 'error');
+            }
+          });
+
+          // 上传图标按钮事件
+          document.getElementById('edit-upload-icon-btn').addEventListener('change', async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            // 检查文件大小
+            if (file.size > 2 * 1024 * 1024) {
+              utils.showToast('文件过大', '图标文件不能超过2MB', 'error');
+              return;
+            }
+
+            // 检查文件类型
+            if (!file.type.startsWith('image/')) {
+              utils.showToast('文件类型错误', '请上传图片文件', 'error');
+              return;
+            }
+
+            try {
+              const reader = new FileReader();
+              reader.onload = async (event) => {
+                try {
+                  utils.showToast('处理中', '正在处理图标...', 'info', 0);
+                  const result = await api.uploadIcon(event.target.result);
+                  elements.toast.classList.add('translate-x-full');
+
+                  if (result.success && result.icon) {
+                    document.getElementById('edit-service-icon').value = result.icon;
+                    document.getElementById('edit-icon-preview').innerHTML = `<img src="${result.icon}" alt="预览" class="w-full h-full object-contain">`;
+                    utils.showToast('上传成功', '图标已上传并处理');
+                  } else {
+                    utils.showToast('上传失败', '无法处理图标，请重试', 'error');
+                  }
+                } catch (e) {
+                  elements.toast.classList.add('translate-x-full');
+                  utils.showToast('上传失败', '上传图标时发生错误', 'error');
+                }
+              };
+              reader.readAsDataURL(file);
+            } catch (e) {
+              utils.showToast('上传失败', '无法读取文件，请重试', 'error');
+            }
+          });
+        });
+      },
+
+      // 删除服务
+      deleteService: async (serviceId, serviceName) => {
+        const confirmed = await utils.showConfirm(
+          '确认删除',
+          `确定要删除服务"${serviceName}"吗？`,
+          async () => {
+            try {
+              await api.deleteService(serviceId);
+              utils.showToast('删除成功', `服务"${serviceName}"已删除`);
+              handlers.loadGroups();
+            } catch (e) {
+              utils.showToast('删除失败', '无法删除服务，请重试', 'error');
+            }
+          }
+        );
+      },
+
+      // 关闭通知弹窗
+      closeToast: () => {
+        elements.toast.classList.add('translate-x-full');
+      }
+    };
+
+    // 初始化函数
+    const init = () => {
+      // 渲染主题和年份
+      render.theme();
+
+      // 绑定事件处理程序
+      elements.authForm.addEventListener('submit', handlers.authSubmit);
+      elements.themeToggle.addEventListener('click', handlers.toggleTheme);
+      elements.networkModeBtn.addEventListener('click', handlers.toggleNetworkMode);
+      elements.searchInput.addEventListener('keypress', handlers.handleSearch);
+      elements.searchInput.addEventListener('input', handlers.handleRealTimeSearch);
+      elements.searchBtn.addEventListener('click', handlers.handleSearch);
+      elements.mobileSearchBtn.addEventListener('click', handlers.toggleMobileSearch);
+      elements.mobileSearchInput.addEventListener('keypress', handlers.handleMobileSearch);
+      elements.mobileSearchBtnAction.addEventListener('click', handlers.handleMobileSearch);
+      elements.addGroupBtn.addEventListener('click', handlers.openAddGroupModal);
+      elements.toastClose.addEventListener('click', handlers.closeToast);
+      document.addEventListener('click', (e) => {
+        if (!e.target.closest('#search-input') && !e.target.closest('#search-results')) {
+          document.getElementById('search-results')?.classList.add('hidden');
+        }
+      });
+      // 检查是否有保存的token
+      if (state.token) {
+        // 验证token是否有效
+        api.verifyToken(state.token).then(valid => {
+          if (valid) {
+            handlers.loadMainContent();
+          } else {
+            // token无效，清除并显示认证界面
+            localStorage.removeItem('nas_dashboard_token');
+            state.token = null;
+            elements.authContainer.classList.remove('hidden');
+          }
+        });
+      } else {
+        // 没有token，显示认证界面
+        elements.authContainer.classList.remove('hidden');
+      }
+    };
+
+    // 启动应用
+    document.addEventListener('DOMContentLoaded', init);
+  </script>
+</body>
+
+</html>
